@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = '../build/EmbarcaTrip.uf2'
+elf = '../build/EmbarcaTrip.elf'
