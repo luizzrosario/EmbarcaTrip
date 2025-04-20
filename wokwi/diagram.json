@@ -72,14 +72,8 @@
     { "type": "wokwi-neopixel", "id": "rgb24", "top": -195.5, "left": 181.4, "attrs": {} },
     { "type": "wokwi-neopixel", "id": "rgb25", "top": -195.5, "left": 152.6, "attrs": {} },
     { "type": "wokwi-neopixel", "id": "rgb26", "top": -195.5, "left": 123.8, "attrs": {} },
-    {
-      "type": "wokwi-analog-joystick",
-      "id": "joystick1",
-      "top": -375,
-      "left": -23.4,
-      "attrs": {}
-    },
-    { "type": "wokwi-vcc", "id": "vcc2", "top": -287.24, "left": -57.6, "attrs": {} },
+    { "type": "wokwi-analog-joystick", "id": "joystick1", "top": 172.2, "left": 111, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc2", "top": 240.76, "left": 48, "attrs": {} },
     {
       "type": "wokwi-microphone",
       "id": "mic1",
@@ -199,16 +193,16 @@
     [ "pico:GP6", "btn2:2.r", "blue", [ "h0" ] ],
     [ "pico:GND.2", "btn1:1.r", "black", [ "h-124.8", "v-144" ] ],
     [ "pico:GND.2", "btn2:1.r", "black", [ "h-38.4", "v-144" ] ],
-    [ "joystick1:HORZ", "pico:GP27", "gold", [ "v76.8", "h48", "v201.6" ] ],
-    [ "joystick1:VERT", "pico:GP26", "orange", [ "v86.4", "h67.2", "v201.6" ] ],
-    [ "joystick1:VCC", "vcc2:VCC", "red", [ "v19.2", "h-57.6" ] ],
-    [ "joystick1:SEL", "pico:GP22", "limegreen", [ "v67.2", "h57.6", "v240" ] ],
-    [ "joystick1:GND", "pico:GND.8", "black", [ "v57.6", "h57.6", "v163.2" ] ],
+    [ "joystick1:HORZ", "pico:GP27", "gold", [ "v48", "h-67.2", "v-307.2" ] ],
+    [ "joystick1:VERT", "pico:GP26", "orange", [ "v57.6", "h-67.2", "v-307.2" ] ],
+    [ "joystick1:VCC", "vcc2:VCC", "red", [ "v19.2", "h-86.4" ] ],
+    [ "joystick1:SEL", "pico:GP22", "limegreen", [ "v67.2", "h-96", "v-297.6" ] ],
     [ "mic1:2", "pico:GND.6", "black", [ "h-57.6", "v19.19" ] ],
     [ "bz1:1", "pico:GND.6", "black", [ "v0" ] ],
     [ "bz1:2", "pico:GP21", "red", [ "v0" ] ],
     [ "pico:GP10", "bz2:2", "red", [ "h0" ] ],
-    [ "pico:GND.3", "bz2:1", "black", [ "h0" ] ]
+    [ "pico:GND.3", "bz2:1", "black", [ "h0" ] ],
+    [ "pico:GND.6", "joystick1:GND", "black", [ "h173.11", "v240", "h-48" ] ]
   ],
   "dependencies": {}
 }
