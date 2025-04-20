@@ -5,6 +5,7 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "include/ssd1306.h"
+#include "ws2812.pio.h"
 
 // Definição dos pinos dos sensores e botões
 #define SENSOR_X 27        // Pino do sensor no eixo X
@@ -35,12 +36,26 @@
 #define HEIGHT 64 // Altura do display
 
 // Limiares para detecção de movimento do joystick
-#define LIMIAR_MIN 1940 // Valor mínimo para considerar movimento
+#define LIMIAR_MIN 1840 // Valor mínimo para considerar movimento
 #define LIMIAR_MAX 2200 // Valor máximo para considerar movimento
+
+// Definição dos limites de movimento do quadrado no display
+#define MOVEMENT_X_MIN 0
+#define MOVEMENT_X_MAX 120
+#define MOVEMENT_Y_MIN 8
+#define MOVEMENT_Y_MAX 44
 
 // Definição de tempos
 #define TEMPO_OCIOSIDADE_MS 10000 // Tempo para considerar o motor ocioso (10 segundos)
 #define TEMPO_DEBOUNCE_MS 200     // Tempo de debounce para os botões (200 ms)
+
+#define WS2812_PIN 7
+#define MAX_LEDS 25
+
+// Variáveis para controle dos LEDs WS2812
+static int sm = 0;  // Máquina de estado do PIO
+static PIO pio = pio0;  // Bloco PIO
+static uint32_t grb[MAX_LEDS];  // Array para armazenar as cores dos LEDs
 
 // Estrutura para o display SSD1306
 ssd1306_t ssd;
@@ -120,27 +135,45 @@ void button_isr(uint gpio, uint32_t events)
     }
 }
 
+// Desenha e move um quadrado no display OLED
+void move_square(ssd1306_t *ssd, int x, int y)
+{
+    static int prev_x = WIDTH / 2 - 4;  // Posição inicial X do quadrado
+    static int prev_y = HEIGHT / 2 - 4; // Posição inicial Y do quadrado
+
+    // Apaga o quadrado anterior
+    ssd1306_rect(ssd, prev_y, prev_x, 8, 8, false, true);
+
+    // Atualiza a posição do quadrado
+    prev_x = x;
+    prev_y = y;
+
+    // Desenha o quadrado na nova posição
+    ssd1306_rect(ssd, prev_y, prev_x, 8, 8, true, true);
+    ssd1306_send_data(ssd);
+}
+
 // Função para exibir o estado do motor no display OLED
 void exibir_estado_no_display()
 {
     ssd1306_fill(&ssd, false); // Limpa o display
 
     char texto[20];
-    // Exibe o consumo de combustível
-    sprintf(texto, "Consumo:%dL", gasto_tempo / 1000);
-    ssd1306_draw_string(&ssd, texto, 0, 30);
     // Exibe o ID da viagem
-    sprintf(texto, "Viagem:%d", viagem);
-    ssd1306_draw_string(&ssd, texto, 0, 40);
+    sprintf(texto, "V:%d", viagem);
+    ssd1306_draw_string(&ssd, texto, 95, 0);
     // Exibe o tempo ocioso
-    sprintf(texto, "Ocioso:%dmin", tempo_ocioso / 1000);
-    ssd1306_draw_string(&ssd, texto, 0, 50);
+    sprintf(texto, "Ocioso:%dm", tempo_ocioso / 1000);
+    ssd1306_draw_string(&ssd, texto, 0, 55);
+    // Exibe o consumo de combustível
+    sprintf(texto, "%dL", gasto_tempo / 1000);
+    ssd1306_draw_string(&ssd, texto, 95, 55);
 
     // Exibe o estado atual do motor
     switch (estado_motor)
     {
     case MOTOR_LIGADO_MOVIMENTO:
-        ssd1306_draw_string(&ssd, "Em movimento", 0, 0);
+        ssd1306_draw_string(&ssd, "Movimento", 0, 0);
         break;
     case MOTOR_LIGADO_PARADO:
         ssd1306_draw_string(&ssd, "Parado", 0, 0);
@@ -156,6 +189,25 @@ void exibir_estado_no_display()
     }
 
     ssd1306_send_data(&ssd); // Envia os dados para o display
+}
+
+// Função para converter porcentagens de cores RGB para o formato GRB
+static void rgb_to_grb(uint32_t porcentColors[][3]) {
+    for (int i = 0; i < MAX_LEDS; i++) {
+        uint8_t r = porcentColors[i][0] ? 255 * (porcentColors[i][0] / 100.0) : 0;
+        uint8_t g = porcentColors[i][1] ? 255 * (porcentColors[i][1] / 100.0) : 0;
+        uint8_t b = porcentColors[i][2] ? 255 * (porcentColors[i][2] / 100.0) : 0;
+        grb[i] = (g << 16) | (r << 8) | b;
+    }
+}
+
+// Função para inicializar a matriz de LEDs WS2812
+void init_ws2812() {
+    uint offset = pio_add_program(pio, &ws2812_program);
+    ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, false);
+    for (int i = 0; i < MAX_LEDS; i++) {
+        pio_sm_put_blocking(pio, sm, 0);
+    }
 }
 
 // Função para inicializar o hardware
@@ -209,6 +261,9 @@ void init_hardware()
     adc_init();
     adc_gpio_init(SENSOR_X);
     adc_gpio_init(SENSOR_Y);
+
+    // Configuração do PIO para os LEDs WS2812
+    init_ws2812();
 }
 
 // Função principal
@@ -218,14 +273,22 @@ int main()
 
     while (1)
     {
+        // Lê os valores do joystick
+        adc_select_input(0);
+        uint16_t leitura_y = adc_read();
+        adc_select_input(1);
+        uint16_t leitura_x = adc_read();
+
+        // Calcula as posições para o movimento do quadrado
+        int square_x = MOVEMENT_X_MIN + (leitura_x * (MOVEMENT_X_MAX - MOVEMENT_X_MIN)) / 4095;
+        int square_y = MOVEMENT_Y_MAX - (leitura_y * (MOVEMENT_Y_MAX - MOVEMENT_Y_MIN)) / 4095;
+
+
+        // Move o quadrado no display
+        move_square(&ssd, square_x, square_y);
+
         if (estado_motor != MOTOR_DESLIGADO)
         {
-            // Lê os valores do joystick
-            adc_select_input(0);
-            uint16_t leitura_x = adc_read();
-            adc_select_input(1);
-            uint16_t leitura_y = adc_read();
-
             // Verifica se o joystick está dentro dos limites (parado)
             bool dentro_limite_x = (leitura_x > LIMIAR_MIN && leitura_x < LIMIAR_MAX);
             bool dentro_limite_y = (leitura_y > LIMIAR_MIN && leitura_y < LIMIAR_MAX);
@@ -262,6 +325,6 @@ int main()
         atualizar_leds();
         exibir_estado_no_display();
 
-        sleep_ms(100); // Aguarda 100 ms antes de repetir
+        sleep_ms(41); // Aguarda 41 ms antes de repetir (41,6 ms para 24 FPS)
     }
 }
