@@ -107,34 +107,6 @@ void tocar_nota(uint pino_Buzzer, int frequencia, int duracao)
     }
 }
 
-// Função de interrupção para os botões
-void button_isr(uint gpio, uint32_t events)
-{
-    uint32_t current_time = to_ms_since_boot(get_absolute_time());
-
-    // Verifica o debounce
-    if (current_time - last_interrupt_time > TEMPO_DEBOUNCE_MS)
-    {
-        last_interrupt_time = current_time;
-
-        if (gpio == BUTTON_A_PIN)
-        {
-            // Alterna entre ligar e desligar o motor
-            estado_motor = (estado_motor == MOTOR_DESLIGADO) ? MOTOR_LIGADO_PARADO : MOTOR_DESLIGADO;
-            tempo_inicio_parado = get_absolute_time(); // Reinicia o contador de tempo parado
-            atualizar_leds();                          // Atualiza os LEDs
-        }
-        else if (gpio == BUTTON_B_PIN)
-        {
-            // Incrementa o contador de viagens e zera o tempo de movimento
-            printf("Viagem %d: Consumo = %d L Tempo ocioso = %d\n", viagem, gasto_tempo / 1000, tempo_ocioso); // Envia dados para o PC
-            viagem++;
-            gasto_tempo = 0;  // Zera o tempo de movimento
-            tempo_ocioso = 0; // Zera o tempo ocioso
-        }
-    }
-}
-
 // Desenha e move um quadrado no display OLED
 void move_square(ssd1306_t *ssd, int x, int y)
 {
@@ -210,6 +182,93 @@ void init_ws2812() {
     }
 }
 
+// Função para exibir um número ou símbolo especial na matriz de LEDs WS2812
+void display_number(int number) {
+    // Matrizes de 5x5 para representar símbolos
+    const uint32_t numbers[4][25] = {
+        // 0 - "!" vermelho
+        {0, 0, 1, 0, 0,
+         0, 0, 0, 0, 0,
+         0, 0, 1, 0, 0,
+         0, 0, 1, 0, 0,
+         0, 0, 1, 0, 0},
+        // 1 - "+" verde
+        {0, 0, 1, 0, 0,
+         0, 0, 1, 0, 0,
+         1, 1, 1, 1, 1,
+         0, 0, 1, 0, 0,
+         0, 0, 1, 0, 0},
+        // 2 - "-" amarelo
+        {0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0,
+         1, 1, 1, 1, 1,
+         0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0},
+        // 3 - "-" branco
+        {0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0,
+         0, 0, 1, 0, 0,
+         0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0}
+    };
+
+    // Cores para cada símbolo
+    const uint32_t colors[4][3] = {
+        {100, 0, 0},   // "!" Vermelho
+        {0, 100, 0},   // "+" Verde
+        {100, 100, 0}, // "-" Amarelo 
+        {100, 100, 100}// Branco
+    };
+
+    uint32_t porcentColors[MAX_LEDS][3] = {0};
+    for (int i = 0; i < MAX_LEDS; i++) {
+        if (numbers[number][i]) {
+            porcentColors[i][0] = colors[number][0]; // Vermelho
+            porcentColors[i][1] = colors[number][1]; // Verde
+            porcentColors[i][2] = colors[number][2]; // Azul
+        }
+    }
+
+    rgb_to_grb(porcentColors);
+    for (int i = 0; i < MAX_LEDS; i++) {
+        pio_sm_put_blocking(pio, sm, grb[i] << 8u);
+    }
+    sleep_us(10);
+}
+
+void button_isr(uint gpio, uint32_t events)
+{
+    uint32_t current_time = to_ms_since_boot(get_absolute_time());
+
+    // Verifica o debounce
+    if (current_time - last_interrupt_time > TEMPO_DEBOUNCE_MS)
+    {
+        last_interrupt_time = current_time;
+
+        if (gpio == BUTTON_A_PIN)
+        {
+            // Alterna entre ligar e desligar o motor
+            if (estado_motor == MOTOR_DESLIGADO) { 
+                estado_motor = MOTOR_LIGADO_PARADO;
+                display_number(2); // Exibe o símbolo "-" amarelo
+            } else {
+                estado_motor = MOTOR_DESLIGADO;
+                display_number(3); // Exibe o símbolo "-" branco
+            }
+            tempo_inicio_parado = get_absolute_time(); // Reinicia o contador de tempo parado
+            atualizar_leds();                          // Atualiza os LEDs
+        }
+        else if (gpio == BUTTON_B_PIN)
+        {
+            // Incrementa o contador de viagens e zera o tempo de movimento
+            printf("Viagem %d: Consumo = %d L Tempo ocioso = %d\n", viagem, gasto_tempo / 1000, tempo_ocioso); // Envia dados para o PC
+            viagem++;
+            gasto_tempo = 0;  // Zera o tempo de movimento
+            tempo_ocioso = 0; // Zera o tempo ocioso
+        }
+    }
+}
+
 // Função para inicializar o hardware
 void init_hardware()
 {
@@ -270,6 +329,8 @@ void init_hardware()
 int main()
 {
     init_hardware(); // Inicializa o hardware
+    sleep_ms(10); // Aguarda 100 ms para estabilização
+    display_number(3); // Exibe o símbolo "-" branco inicialmente
 
     while (1)
     {
@@ -285,8 +346,7 @@ int main()
 
 
         // Move o quadrado no display
-        move_square(&ssd, square_x, square_y);
-
+        move_square(&ssd, square_x, square_y); 
         if (estado_motor != MOTOR_DESLIGADO)
         {
             // Verifica se o joystick está dentro dos limites (parado)
@@ -300,6 +360,7 @@ int main()
                 {
                     estado_motor = MOTOR_LIGADO_PARADO;
                     tempo_inicio_parado = get_absolute_time(); // Inicia o contador de tempo parado
+                    display_number(2); // Exibe o símbolo "-" amarelo
                 }
                 else if (estado_motor == MOTOR_LIGADO_PARADO || estado_motor == MOTOR_LIGADO_OCIOSO)
                 {
@@ -307,6 +368,7 @@ int main()
                     if (absolute_time_diff_us(tempo_inicio_parado, get_absolute_time()) >= TEMPO_OCIOSIDADE_MS * 1000)
                     {
                         estado_motor = MOTOR_LIGADO_OCIOSO;
+                        display_number(0); // Exibe o símbolo "!" vermelho
                         tocar_nota(BUZZER_PIN_A, 400, 100); // Toca um alerta sonoro
                         tocar_nota(BUZZER_PIN_B, 250, 100);
                         tempo_ocioso += 300; // Incrementa o tempo ocioso
@@ -316,8 +378,9 @@ int main()
             else
             {
                 // Motor está em movimento
+                display_number(1); // Exibe o símbolo "+" verde
                 estado_motor = MOTOR_LIGADO_MOVIMENTO;
-                gasto_tempo += 100; // Incrementa o tempo de movimento
+                gasto_tempo += 10; // Incrementa o tempo de movimento
             }
         }
 
@@ -325,6 +388,6 @@ int main()
         atualizar_leds();
         exibir_estado_no_display();
 
-        sleep_ms(41); // Aguarda 41 ms antes de repetir (41,6 ms para 24 FPS)
+        sleep_ms(10); // Aguarda 10 ms antes de repetir 
     }
 }
