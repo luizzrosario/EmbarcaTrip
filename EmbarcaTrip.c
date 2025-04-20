@@ -389,7 +389,7 @@ void loop()
 int main()
 {
     init_hardware();        // Inicializa o hardware
-    sleep_ms(10);           // Aguarda 100 ms para estabilização
+    sleep_ms(10);           // Aguarda 10 ms para estabilização
     estado_motor_matrix(3); // Exibe o símbolo "-" branco inicialmente
 
     while (1)
