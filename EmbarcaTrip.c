@@ -6,79 +6,7 @@
 #include "hardware/clocks.h"
 #include "include/ssd1306.h"
 #include "ws2812.pio.h"
-
-// ==== Definições de Hardware ====
-// Sensores de Joystick
-#define SENSOR_X        27
-#define SENSOR_Y        26
-#define BUTTON_JOYSTICK 22
-
-// Buzzers
-#define BUZZER_PIN_A    10
-#define BUZZER_PIN_B    21
-
-// Botões de Controle
-#define BUTTON_A_PIN    5
-#define BUTTON_B_PIN    6
-
-// LEDs Indicadores
-#define LED_R_PIN       13
-#define LED_G_PIN       11
-#define LED_B_PIN       12
-
-// Display OLED via I2C
-#define I2C_PORT        i2c1
-#define I2C_SDA         14
-#define I2C_SCL         15
-#define ENDERECO_OLED   0x3C
-
-// Dimensões do Display
-#define WIDTH           128
-#define HEIGHT          64
-
-// LEDs WS2812
-#define WS2812_PIN      7
-#define MAX_LEDS        25
-
-// ==== Definições de Parâmetros de Funcionamento ====
-// Limiares de Movimento do Joystick
-#define LIMIAR_MIN      1840
-#define LIMIAR_MAX      2200
-
-// Limites de Movimento do Quadrado no Display
-#define MOVEMENT_X_MIN  0
-#define MOVEMENT_X_MAX  120
-#define MOVEMENT_Y_MIN  8
-#define MOVEMENT_Y_MAX  44
-
-// Tempos de Controle
-#define TEMPO_OCIOSIDADE_MS 10000 // 10 segundos
-#define TEMPO_DEBOUNCE_MS   200   // 200 ms
-
-// ==== Variáveis Globais ====
-// Controle dos LEDs WS2812
-static int sm = 0;
-static PIO pio = pio0;
-static uint32_t grb[MAX_LEDS];
-
-// Controle do Display
-ssd1306_t ssd;
-
-// Estados do Motor
-typedef enum {
-    MOTOR_DESLIGADO,
-    MOTOR_LIGADO_MOVIMENTO,
-    MOTOR_LIGADO_PARADO,
-    MOTOR_LIGADO_OCIOSO
-} estado_motor_t;
-
-// Controle do Sistema
-volatile estado_motor_t estado_motor = MOTOR_DESLIGADO;
-volatile uint32_t last_interrupt_time = 0;
-absolute_time_t tempo_inicio_parado;
-uint32_t gasto_tempo = 0;
-uint32_t viagem = 0;
-uint32_t tempo_ocioso = 0;
+#include "globals.h"
 
 // Função para atualizar os LEDs com base no estado do motor
 void atualizar_leds()
@@ -89,7 +17,8 @@ void atualizar_leds()
 }
 
 // Função auxiliar para configurar e iniciar o PWM no buzzer
-static void iniciar_pwm_buzzer(uint pino_buzzer, int frequencia) {
+static void iniciar_pwm_buzzer(uint pino_buzzer, int frequencia)
+{
     int slice_num = pwm_gpio_to_slice_num(pino_buzzer);
     uint32_t freq_sistema = clock_get_hz(clk_sys);
     uint16_t wrap_valor = freq_sistema / frequencia - 1;
@@ -100,22 +29,26 @@ static void iniciar_pwm_buzzer(uint pino_buzzer, int frequencia) {
 }
 
 // Função auxiliar para parar o PWM do buzzer
-static void parar_pwm_buzzer(uint pino_buzzer) {
+static void parar_pwm_buzzer(uint pino_buzzer)
+{
     int slice_num = pwm_gpio_to_slice_num(pino_buzzer);
     pwm_set_enabled(slice_num, false);
 }
 
 // Função principal para tocar uma nota
-void tocar_nota(uint pino_buzzer, int frequencia, int duracao) {
-    if (frequencia > 0) {
+void tocar_nota(uint pino_buzzer, int frequencia, int duracao)
+{
+    if (frequencia > 0)
+    {
         iniciar_pwm_buzzer(pino_buzzer, frequencia);
         sleep_ms(duracao); // Mantém a nota
         parar_pwm_buzzer(pino_buzzer);
-    } else {
+    }
+    else
+    {
         sleep_ms(duracao); // Pausa (nota silenciosa)
     }
 }
-
 
 // Desenha e move um quadrado no display OLED
 void move_square(ssd1306_t *ssd, int x, int y)
