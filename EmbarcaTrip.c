@@ -137,14 +137,14 @@ static void montar_buffer_simbolo(int numero, uint32_t porcentagem_cores[][3])
         {0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0},
         // 2 - "-" amarelo
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        // 3 - "-" branco (apenas no centro)
+        // 3 - "." branco (apenas no centro)
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 
     const uint32_t cores[4][3] = {
         {100, 0, 0},    // "!" vermelho
         {0, 100, 0},    // "+" verde
         {100, 100, 0},  // "-" amarelo
-        {100, 100, 100} // "-" branco
+        {100, 100, 100} // "." branco
     };
 
     for (int i = 0; i < MAX_LEDS; i++)
